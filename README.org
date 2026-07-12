@@ -7,7 +7,7 @@ and rendering them to strings.  It is exposed as a [[https://nixos.wiki/wiki/Fla
 primarily intended for generating Emacs Lisp configuration from within Nix
 flakes.
 
-The library is implemented in =lib/default.nix= (~370 lines) and provides
+The library is implemented in [[file:lib/default.nix][lib/default.nix]] and provides
 two layered modules:
 
 - =sexp= :: A generic S-expression layer with symbol, cons, and form constructors.
@@ -15,7 +15,7 @@ two layered modules:
   forms, plists, alists) plus a rendering engine that maps Nix values onto
   Elisp syntax.
 
-The repository includes =flake.lock= so that checked-out commits can be
+The repository includes [[file:flake.lock][flake.lock]] so that checked-out commits can be
 evaluated and tested against the pinned =nixpkgs= snapshot used by the
 project.
 
@@ -209,14 +209,14 @@ Three test suites are defined:
 
 - =unit= :: Pure-Nix assertion tests covering type rendering, symbol
   escaping, form construction, plist/alist builders, vectors, raw nodes,
-  and error paths (=tests/unit/assertions.nix=).
+  and error paths ([[file:tests/unit/assertions.nix][tests/unit/assertions.nix]]).
 - =reader= :: Reader tests that generate Elisp source from Nix and verify
   that boundary-case symbols, strings, vectors, and floats are readable by
-  Emacs in batch mode (=tests/reader/=).  Additional reader assertions live
-  in =tests/reader/lisp/assertions.el=.
+  Emacs in batch mode ([[file:tests/reader/][tests/reader/]]).  Additional reader assertions live
+  in [[file:tests/reader/lisp/assertions.el][tests/reader/lisp/assertions.el]].
 - =examples= :: Integration-style tests that render complex Emacs
   configuration forms and verify readability by Emacs in batch mode
-  (=tests/examples/=).
+  ([[file:tests/examples/][tests/examples/]]).
 
 The current test layout is:
 
@@ -236,7 +236,7 @@ tests/
     source.nix
 #+end_src
 
-=tests/default.nix= only collects the check derivations.  Each subdirectory
+[[file:tests/default.nix][tests/default.nix]] only collects the check derivations.  Each subdirectory
 builds its own check in =default.nix=, while the concrete test expression or
 generated source is kept in a separate, more specific file.
 
