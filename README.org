@@ -1,0 +1,8 @@
+#+TITLE: Nix to Lisp
+#+AUTHOR: Lingyu Ren
+
+* Introduction
+A Nix library for generating Lisp S-expressions.
+
+* License
+This project is licensed under the [[file:LICENSE][MIT License]].
