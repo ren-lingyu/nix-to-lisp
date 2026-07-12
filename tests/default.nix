@@ -12,4 +12,8 @@
     inherit pkgs lib;
   };
 
+  context = import ./context {
+    inherit pkgs lib;
+  };
+
 }

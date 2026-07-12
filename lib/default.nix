@@ -124,6 +124,22 @@ rec {
       value_
     );
 
+    needsStringEscape_ = value_ : (
+      builtins.match ".*[\\\\\"\n\r\t].*" value_ != null
+    );
+
+    renderString_ = value_ : (
+      if needsStringEscape_ value_
+      then (
+        if builtins.hasContext value_
+        then builtins.throw "elisp.render: strings with Nix context that require escaping are unsupported"
+        else "\"${escapeString_ value_}\""
+      )
+      else "\"${value_}\""
+    );
+
+    renderPath_ = value_ : "\"${value_}\"";
+
     renderFloat_ = value_ : let
       rendered_ = builtins.toString value_;
     in (
@@ -218,10 +234,10 @@ rec {
             then renderFloat_ value_
             else (
               if type_ == "string"
-              then "\"${escapeString_ value_}\""
+              then renderString_ value_
               else (
                 if type_ == "path"
-                then "\"${escapeString_ (builtins.toString value_)}\""
+                then renderPath_ value_
                 else (
                   if type_ == "list"
                   then renderList_ value_
