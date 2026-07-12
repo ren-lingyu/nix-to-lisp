@@ -1,7 +1,9 @@
-{ lib } : let
+{ pkgs, lib } : let
   
   sexp = lib.sexp;
   elisp = lib.elisp;
+
+  contextFile_ = pkgs.writeText "nix-to-lisp-context" "ok";
 
 in
 
@@ -21,7 +23,10 @@ assert elisp.render (builtins.concatStringsSep "\n" [
   "b"
   ""
 ]) == "\"a\\nb\\n\"";
-assert elisp.render ./assertions.nix == "\"${builtins.toString ./assertions.nix}\"";
+assert builtins.match "\"/nix/store/.*-assertions.nix\"" (elisp.render ./assertions.nix) != null;
+assert builtins.hasContext (elisp.render ./assertions.nix);
+assert elisp.render "${contextFile_}/share/foo.el" == "\"${contextFile_}/share/foo.el\"";
+assert builtins.hasContext (elisp.render "${contextFile_}/share/foo.el");
 
 assert elisp.render (sexp.symbol "foo") == "foo";
 assert elisp.render (sexp.symbol "org-mode") == "org-mode";
@@ -144,5 +149,6 @@ assert (!(builtins.tryEval (elisp.render {
   __elispType = "raw";
   value = 1;
 })).success);
+assert (!(builtins.tryEval (elisp.render "${contextFile_}\n")).success);
 
 "ok"
