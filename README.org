@@ -15,6 +15,10 @@ two layered modules:
   forms, plists, alists) plus a rendering engine that maps Nix values onto
   Elisp syntax.
 
+The repository includes =flake.lock= so that checked-out commits can be
+evaluated and tested against the pinned =nixpkgs= snapshot used by the
+project.
+
 * Quick start
 
 Add this flake as an input:
@@ -192,6 +196,61 @@ elisp.renderForms [
 | =vector= node    | Bracket-delimited vector =[a b c]=                    |
 | =raw= node       | Verbatim output (no escaping)                         |
 | Plain attrset    | Error — use =plist= / =alist= builders                |
+
+* Testing
+
+Tests are exposed as Nix flake checks and can be run with:
+
+#+begin_src sh
+nix flake check
+#+end_src
+
+Three test suites are defined:
+
+- =unit= :: Pure-Nix assertion tests covering type rendering, symbol
+  escaping, form construction, plist/alist builders, vectors, raw nodes,
+  and error paths (=tests/unit/assertions.nix=).
+- =reader= :: Reader tests that generate Elisp source from Nix and verify
+  that boundary-case symbols, strings, vectors, and floats are readable by
+  Emacs in batch mode (=tests/reader/=).  Additional reader assertions live
+  in =tests/reader/lisp/assertions.el=.
+- =examples= :: Integration-style tests that render complex Emacs
+  configuration forms and verify readability by Emacs in batch mode
+  (=tests/examples/=).
+
+The current test layout is:
+
+#+begin_src text
+tests/
+  default.nix
+  unit/
+    default.nix
+    assertions.nix
+  reader/
+    default.nix
+    source.nix
+    lisp/
+      assertions.el
+  examples/
+    default.nix
+    source.nix
+#+end_src
+
+=tests/default.nix= only collects the check derivations.  Each subdirectory
+builds its own check in =default.nix=, while the concrete test expression or
+generated source is kept in a separate, more specific file.
+
+This has been verified on =x86_64-linux= with:
+
+#+begin_src sh
+nix flake check --no-write-lock-file --print-build-logs
+#+end_src
+
+The flake currently exposes checks for =nixpkgs.lib.systems.flakeExposed=.
+Running with =--all-systems= may fail on machines without the necessary
+cross-system builders or where dependencies such as =emacs-nox= are not
+available for the requested system.  The first version intentionally keeps
+that broad exposure; support policy can be narrowed later if needed.
 
 * License
 This project is licensed under the [[file:LICENSE][MIT License]].
