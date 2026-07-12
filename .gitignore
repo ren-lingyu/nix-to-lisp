@@ -16,6 +16,10 @@
 !lib/**/
 !lib/**/*.nix
 
+!tests/
+!tests/**/
+!tests/**/*.nix
+
 *~
 *#
 **/tmp/
