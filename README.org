@@ -2,7 +2,196 @@
 #+AUTHOR: Lingyu Ren
 
 * Introduction
-A Nix library for generating Lisp S-expressions.
+Nix to Lisp is a single-file Nix library for generating Elisp S-expressions
+and rendering them to strings.  It is exposed as a [[https://nixos.wiki/wiki/Flakes][Nix flake]] and is
+primarily intended for generating Emacs Lisp configuration from within Nix
+flakes.
+
+The library is implemented in =lib/default.nix= (~370 lines) and provides
+two layered modules:
+
+- =sexp= :: A generic S-expression layer with symbol, cons, and form constructors.
+- =elisp= :: Elisp-specific constructors (vectors, raw strings, quotation
+  forms, plists, alists) plus a rendering engine that maps Nix values onto
+  Elisp syntax.
+
+* Quick start
+
+Add this flake as an input:
+
+#+begin_src nix
+{
+  inputs.nix-to-lisp.url = "github:ren-lingyu/nix-to-lisp";
+  outputs = { nix-to-lisp, ... }: let
+    sexp = nix-to-lisp.lib.sexp;
+    elisp = nix-to-lisp.lib.elisp;
+  in {
+    # …
+  };
+}
+#+end_src
+
+Generate a simple =use-package= form:
+
+#+begin_src nix
+elisp.render (sexp.form "use-package" [
+  (sexp.symbol "org")
+  (sexp.symbol ":config")
+  (sexp.form "setq" [
+    (sexp.symbol "org-directory")
+    "~/org/"
+  ])
+])
+#+end_src
+
+This produces the string:
+
+#+begin_src emacs-lisp
+(use-package org :config (setq org-directory "~/org/"))
+#+end_src
+
+* Architecture
+
+The library uses tagged attrsets as internal AST nodes.  Each node carries a
+discriminator field:
+
+- =__sexpType=: ="symbol"= or ="cons"=.
+- =__elispType=: ="vector"= or ="raw"=.
+
+Users normally do not construct these nodes directly; they use the
+constructors documented below.
+
+* API reference
+
+** =sexp= module
+The =sexp= module provides a minimal S-expression layer.  Every constructor
+returns data that =elisp.render= understands.
+
+| Function      | Signature                     | Description                                         |
+|---------------+-------------------------------+-----------------------------------------------------|
+| =sexp.symbol= | =name_ -> node=               | Create a symbol node from a string.                 |
+| =sexp.cons=   | =car_ -> cdr_ -> node=        | Create a dotted-pair cons cell.                     |
+| =sexp.form=   | =name_ -> arguments_ -> list= | Create a function-call form =(name arg1 arg2 ...)=. |
+
+Examples:
+
+#+begin_src nix
+sexp.symbol "foo"                 # symbol |foo|
+sexp.cons (sexp.symbol "a") 1     # (a . 1)
+sexp.form "message" [ "hello" ]   # (message "hello")
+#+end_src
+
+** =elisp= module
+
+The =elisp= module re-exports =symbol=, =cons=, and =form= (identical to
+their =sexp= counterparts) and adds Elisp-specific constructors and
+rendering functions.
+
+*** Constructors
+
+| Function                | Signature          | Description                                       |
+|-------------------------+--------------------+---------------------------------------------------|
+| =elisp.vector=          | =values_ -> node=  | Elisp vector =[a b c]=.                           |
+| =elisp.raw=             | =value_ -> node=   | Raw string inserted verbatim (no escaping).       |
+| =elisp.quote=           | =value_ -> list=   | Shorthand for =(quote <value>)=.                  |
+| =elisp.function=        | =value_ -> list=   | Long-form function quote =(function <value>)=.    |
+| =elisp.backquote=       | =value_ -> list=   | Long-form quasiquote =(backquote <value>)=.       |
+| =elisp.unquote=         | =value_ -> list=   | =,value= inside a backquote.                      |
+| =elisp.unquoteSplicing= | =value_ -> list=   | =,@value= inside a backquote.                     |
+| =elisp.plist=           | =entries_ -> list= | Property list =(:key1 val1 :key2 val2)=.          |
+| =elisp.plistFromAttrs=  | =attrs_ -> list=   | Property list from a Nix attrset.                 |
+| =elisp.alist=           | =entries_ -> list= | Association list =((key1 . val1) (key2 . val2))=. |
+| =elisp.alistFromAttrs=  | =attrs_ -> list=   | Association list from a Nix attrset.              |
+
+Examples:
+
+#+begin_src nix
+# Vector
+elisp.render (elisp.vector [ 1 (sexp.symbol "foo") "bar" ])
+# => [1 foo "bar"]
+
+# Quotation forms
+elisp.render (elisp.quote (sexp.symbol "load-path"))
+# => (quote load-path)
+
+elisp.render (elisp.function (sexp.symbol "my-func"))
+# => (function my-func)
+
+# Backquote with unquote
+elisp.render (elisp.backquote [
+  (sexp.symbol "a")
+  (elisp.unquote (sexp.symbol "x"))
+  (elisp.unquoteSplicing (sexp.symbol "xs"))
+])
+# => (backquote (a (\, x) (\,@ xs)))
+
+# Property list from explicit entries
+elisp.render (elisp.plist [
+  { key = "foo"; value = 1; }
+  { key = "bar"; value = true; }
+])
+# => (:foo 1 :bar t)
+
+# Property list from an attrset
+elisp.render (elisp.plistFromAttrs {
+  foo = 1;
+  bar = true;
+})
+# => (:bar t :foo 1)
+
+# Association list from explicit entries
+elisp.render (elisp.alist [
+  { key = sexp.symbol "foo"; value = 1; }
+  { key = sexp.symbol "bar"; value = "baz"; }
+])
+# => ((foo . 1) (bar . "baz"))
+
+# Association list from an attrset
+elisp.render (elisp.alistFromAttrs {
+  foo = 1;
+  bar = true;
+})
+# => ((bar . t) (foo . 1))
+#+end_src
+
+*** Renderers
+
+| Function            | Signature          | Description                                       |
+|---------------------+--------------------+---------------------------------------------------|
+| =elisp.render=      | =value_ -> string= | Render a single value to an Elisp string.         |
+| =elisp.renderForms= | =forms_ -> string= | Render multiple forms, separated by a blank line. |
+
+Examples:
+
+#+begin_src nix
+elisp.renderForms [
+  (sexp.form "setq" [ (sexp.symbol "foo") 1 ])
+  (sexp.form "message" [ "done" ])
+]
+# => (setq foo 1)
+# =>
+# => (message "done")
+#+end_src
+
+*** Type mapping for =elisp.render=
+
+=elisp.render= maps Nix types to Elisp syntax as follows:
+
+| Nix type         | Elisp output                                          |
+|------------------+-------------------------------------------------------|
+| =null=           | =nil=                                                 |
+| =bool= (=true=)  | =t=                                                   |
+| =bool= (=false=) | =nil=                                                 |
+| =int=            | Numeric literal                                       |
+| =float=          | Numeric literal with decimal point or exponent marker |
+| =string=         | Double-quoted string with escape sequences            |
+| =path=           | Double-quoted string (coerced to string)              |
+| =list=           | Parenthesised form =(a b c)=                          |
+| =symbol= node    | Escaped symbol name                                   |
+| =cons= node      | Dotted pair =(car . cdr)=                             |
+| =vector= node    | Bracket-delimited vector =[a b c]=                    |
+| =raw= node       | Verbatim output (no escaping)                         |
+| Plain attrset    | Error — use =plist= / =alist= builders                |
 
 * License
 This project is licensed under the [[file:LICENSE][MIT License]].
