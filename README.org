@@ -189,13 +189,20 @@ elisp.renderForms [
 | =int=            | Numeric literal                                       |
 | =float=          | Numeric literal with decimal point or exponent marker |
 | =string=         | Double-quoted string with escape sequences            |
-| =path=           | Double-quoted string (coerced to string)              |
+| =path=           | Double-quoted store path with Nix context preserved   |
 | =list=           | Parenthesised form =(a b c)=                          |
 | =symbol= node    | Escaped symbol name                                   |
 | =cons= node      | Dotted pair =(car . cdr)=                             |
 | =vector= node    | Bracket-delimited vector =[a b c]=                    |
 | =raw= node       | Verbatim output (no escaping)                         |
 | Plain attrset    | Error — use =plist= / =alist= builders                |
+
+Strings and paths are rendered with Nix string context in mind.  Paths and
+strings that do not need Elisp string escaping are rendered by direct
+interpolation so dependencies remain visible to downstream derivations.  Plain
+strings that contain =\=, ="=, newline, carriage return, or tab are escaped.
+If such a string also carries Nix context, rendering fails instead of silently
+dropping that context.
 
 * Testing
 
@@ -205,11 +212,12 @@ Tests are exposed as Nix flake checks and can be run with:
 nix flake check
 #+end_src
 
-Three test suites are defined:
+Four test suites are defined:
 
 - =unit= :: Pure-Nix assertion tests covering type rendering, symbol
   escaping, form construction, plist/alist builders, vectors, raw nodes,
-  and error paths ([[file:tests/unit/assertions.nix][tests/unit/assertions.nix]]).
+  string context preservation, and error paths
+  ([[file:tests/unit/assertions.nix][tests/unit/assertions.nix]]).
 - =reader= :: Reader tests that generate Elisp source from Nix and verify
   that boundary-case symbols, strings, vectors, and floats are readable by
   Emacs in batch mode ([[file:tests/reader/][tests/reader/]]).  Additional reader assertions live
@@ -217,6 +225,9 @@ Three test suites are defined:
 - =examples= :: Integration-style tests that render complex Emacs
   configuration forms and verify readability by Emacs in batch mode
   ([[file:tests/examples/][tests/examples/]]).
+- =context= :: Sandbox-style tests that render a source path into
+  =load-path= and verify Emacs can =require= a feature from that path
+  ([[file:tests/context/][tests/context/]]).
 
 The current test layout is:
 
@@ -234,6 +245,11 @@ tests/
   examples/
     default.nix
     source.nix
+  context/
+    default.nix
+    source.nix
+    lisp/
+      context-feature.el
 #+end_src
 
 [[file:tests/default.nix][tests/default.nix]] only collects the check derivations.  Each subdirectory
