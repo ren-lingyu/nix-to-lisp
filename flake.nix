@@ -11,18 +11,24 @@
     };
   };
   
-  outputs = { self, ... }@inputs : let
+  outputs = { self, ... }@inputs : inputs.flake-parts.lib.mkFlake { inherit inputs; } {
     
-    forAllSystems = inputs.nixpkgs.lib.genAttrs inputs.nixpkgs.lib.systems.flakeExposed;
+    systems = inputs.nixpkgs.lib.systems.flakeExposed;
     
-  in {
+    flake = {
+      
+      lib = import ./lib;
+      
+    };
     
-    lib = import ./lib;
-    
-    checks = forAllSystems (system : import ./tests {
-      pkgs = import inputs.nixpkgs { inherit system; };
-      lib = self.lib;
-    });
+    perSystem = { config, pkgs, ... } : {
+      
+      checks = import ./tests {
+        inherit pkgs;
+        lib = self.lib;
+      };
+      
+    };
     
   };
   
