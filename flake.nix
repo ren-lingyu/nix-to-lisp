@@ -6,6 +6,9 @@
     nixpkgs = {
       url = "git+https://github.com/NixOS/nixpkgs?ref=refs/heads/nixos-unstable&shallow=1";
     };
+    flake-parts = {
+      url = "git+https://github.com/hercules-ci/flake-parts.git?ref=refs/heads/main&shallow=1";
+    };
   };
   
   outputs = { self, ... }@inputs : let
