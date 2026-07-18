@@ -1,10 +1,10 @@
 { lib } : let
-  
+
   sexp = lib.sexp;
   elisp = lib.elisp;
 
 in (elisp.renderForms [
-  
+
   (sexp.form "quote" [
     (sexp.symbol "foo")
   ])
@@ -57,5 +57,5 @@ in (elisp.renderForms [
     1.0
     1.5
   ])
-  
+
 ])
