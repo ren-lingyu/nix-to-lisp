@@ -3,7 +3,7 @@
 
 !README.org
 !.gitignore
-!.gitsubmodules
+!.gitmodules
 !LICENSE
 !flake.nix
 !flake.lock
